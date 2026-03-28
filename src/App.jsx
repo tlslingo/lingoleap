@@ -2,310 +2,413 @@ import { useState, useEffect, useRef } from "react";
 
 const ANTHROPIC_MODEL = "claude-sonnet-4-20250514";
 
-const SYSTEM_PROMPT = `You are LingoLeap — a warm, encouraging, and highly interactive English pronunciation and reading coach for learners aged 5 to 20. Your entire purpose is to make learning to speak and read English correctly feel like a game, not a lesson. You are patient, celebratory, and never make the learner feel bad about mistakes.
+const LESSONS = [
+  { id: 1, level: "Vowels", emoji: "🔴", words: [
+    { word: "APE",   phonetic: "/eɪp/",  hint: "Say the letter A — long A sound",     sentence: "An ape swings in trees." },
+    { word: "EGG",   phonetic: "/ɛɡ/",   hint: "Short E — like 'eh'",                 sentence: "Crack an egg gently." },
+    { word: "INK",   phonetic: "/ɪŋk/",  hint: "Short I — like 'ih'",                 sentence: "The ink is black." },
+    { word: "OX",    phonetic: "/ɒks/",  hint: "Short O — mouth open and round",      sentence: "An ox is very strong." },
+    { word: "UP",    phonetic: "/ʌp/",   hint: "Short U — like 'uh'",                 sentence: "Jump up high!" },
+  ]},
+  { id: 2, level: "Letters", emoji: "🔤", words: [
+    { word: "BAT",   phonetic: "/bæt/",  hint: "B is a lip-pop. A is short. T clicks.", sentence: "Hit the ball with a bat." },
+    { word: "CAT",   phonetic: "/kæt/",  hint: "C is a throat click. A-T at the end.", sentence: "The cat sleeps all day." },
+    { word: "DOG",   phonetic: "/dɒɡ/",  hint: "D-tongue tip. O is short. G at back.", sentence: "My dog loves to run." },
+    { word: "FAN",   phonetic: "/fæn/",  hint: "F-teeth on lip. A-N at the end.",      sentence: "Turn on the fan please." },
+    { word: "HAT",   phonetic: "/hæt/",  hint: "H is just a breath. A short. T click.",sentence: "She wore a big hat." },
+    { word: "JAM",   phonetic: "/dʒæm/", hint: "J is a push sound. A-M at the end.",  sentence: "I love strawberry jam." },
+  ]},
+  { id: 3, level: "Blends", emoji: "🔗", words: [
+    { word: "FROG",  phonetic: "/frɒɡ/", hint: "FR blend — F then R quickly. Say frog!", sentence: "A frog jumped in the pond." },
+    { word: "STAR",  phonetic: "/stɑː/", hint: "ST blend — S hiss then T click.",        sentence: "I see a bright star." },
+    { word: "SHIP",  phonetic: "/ʃɪp/",  hint: "SH — like shushing someone. Shhh-ip.",  sentence: "The ship sailed far away." },
+    { word: "CHIN",  phonetic: "/tʃɪn/", hint: "CH — like a train. Ch-ch-chin!",         sentence: "She rubbed her chin." },
+    { word: "THIN",  phonetic: "/θɪn/",  hint: "TH — tongue BETWEEN teeth. Blow softly.",sentence: "The paper is very thin." },
+    { word: "PHONE", phonetic: "/foʊn/", hint: "PH sounds like F. Phone = fone.",         sentence: "Call me on the phone." },
+  ]},
+  { id: 4, level: "Sentences", emoji: "📖", words: [
+    { word: "GOOD MORNING",    phonetic: "/ɡʊd ˈmɔːr.nɪŋ/", hint: "Stress the first part: GOOD. Morning — stress MOR.", sentence: "We say this every day at school." },
+    { word: "HOW ARE YOU",     phonetic: "/haʊ ɑːr juː/",    hint: "How — rhymes with cow. Link all words smoothly.",    sentence: "Ask your friend how they feel." },
+    { word: "THANK YOU",       phonetic: "/θæŋk juː/",       hint: "TH — tongue between teeth. Then ank-you!",           sentence: "Always say thank you." },
+    { word: "I LOVE ENGLISH",  phonetic: "/aɪ lʌv ˈɪŋ.ɡlɪʃ/",hint: "LOVE — the O sounds like UH. ING-lish.",           sentence: "Say it with confidence!" },
+    { word: "CAN YOU HELP ME", phonetic: "/kæn juː hɛlp miː/",hint: "Link the words: can-you-help-me. No pauses.",       sentence: "Ask politely for help." },
+  ]},
+];
 
-## YOUR CORE PERSONALITY
-- Speak like a kind, fun older sibling — never like a teacher lecturing
-- Use emojis generously to make it visual and fun
-- Celebrate every correct answer with genuine enthusiasm
-- When something is wrong, always say "Almost! Let's try again" — never "Wrong" or "Incorrect"
-- For ages 5–9: use very simple words, big emojis, short sentences
-- For ages 10–20: be slightly more mature but still warm and encouraging
-- Always tell the learner exactly what to do next — never leave them guessing
-
-## ONBOARDING FLOW
-When the conversation starts (first message from user is "BEGIN_SESSION"), greet them and ask for their age. Then ask for their name. Then ask their level (A/B/C).
-
-After onboarding, set their path and say "Type GO when ready to start!"
-
-## MODULES
-Module 1: Vowel Sounds (A E I O U)
-Module 2: Alphabet Sounds A-Z (5 letters per session)
-Module 3: Two-Letter Words
-Module 4: Three-Letter CVC Words
-Module 5: Short Sentences
-Module 6: Full Sentences & Conversations
-Module 7: Speed Reading & Retention (age 10+ only)
-
-## MIC SIMULATION
-Since this is a text interface, when it is time to practice pronunciation:
-- Tell the learner to say the word OUT LOUD
-- Show a mic prompt
-- Ask them to type what it sounded like phonetically, or just type the word
-- Then give encouraging feedback based on their typed response
-
-## GAMIFICATION
-Track stars, celebrate badges, mention their level progression.
-
-## KEY RULES
-- Never move to next module until learner is ready
-- Always offer AGAIN option
-- Use learner's name every few messages
-- Keep responses concise but warm
-- After scoring a practice, always offer TRY AGAIN or NEXT
-- Format your responses nicely with emojis and clear structure
-- Respond in a way that feels like a fun app, not a wall of text`;
-
-const COLORS = {
-  bg: "#0f0c29",
-  bgMid: "#1a1640",
-  card: "#1e1a4a",
-  cardBorder: "#2d2870",
-  accent1: "#7c3aed",
-  accent2: "#a855f7",
-  accent3: "#c084fc",
-  gold: "#fbbf24",
-  green: "#10b981",
-  pink: "#ec4899",
-  text: "#f0eeff",
-  textMuted: "#a89fd8",
-  glow: "rgba(124,58,237,0.35)",
+const speak = (text, rate = 0.85) => {
+  if (!window.speechSynthesis) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = "en-US"; u.rate = rate; u.pitch = 1.05;
+  const voices = speechSynthesis.getVoices();
+  const pref = voices.find(v => v.lang === "en-US" && v.name.includes("Female"))
+    || voices.find(v => v.lang === "en-US")
+    || voices[0];
+  if (pref) u.voice = pref;
+  speechSynthesis.speak(u);
 };
 
 const css = `
-  @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Space+Grotesk:wght@400;500;700&display=swap');
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: #0f0c29; font-family: 'Nunito', sans-serif; color: #f0eeff; min-height: 100vh; overflow: hidden; }
-  .app { display: flex; flex-direction: column; height: 100vh; max-width: 700px; margin: 0 auto; position: relative; }
-  .stars-bg { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 0; }
-  .star-particle { position: absolute; width: 2px; height: 2px; background: white; border-radius: 50%; animation: twinkle 3s infinite alternate; }
-  @keyframes twinkle { 0% { opacity: 0.1; transform: scale(1); } 100% { opacity: 0.8; transform: scale(1.5); } }
-  .header { padding: 16px 20px 12px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #2d2870; background: linear-gradient(180deg, rgba(15,12,41,0.98) 0%, rgba(26,22,64,0.95) 100%); backdrop-filter: blur(12px); position: relative; z-index: 10; flex-shrink: 0; }
-  .logo { display: flex; align-items: center; gap: 10px; }
-  .logo-icon { width: 38px; height: 38px; background: linear-gradient(135deg, #7c3aed, #ec4899); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; box-shadow: 0 0 20px rgba(124,58,237,0.35); }
-  .logo-text { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 1.3rem; background: linear-gradient(90deg, #c084fc, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: -0.5px; }
-  .stats-bar { display: flex; align-items: center; gap: 12px; }
-  .stat-pill { display: flex; align-items: center; gap: 5px; background: #1e1a4a; border: 1px solid #2d2870; padding: 5px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; color: #fbbf24; }
-  .messages { flex: 1; overflow-y: auto; padding: 20px 16px; display: flex; flex-direction: column; gap: 14px; position: relative; z-index: 1; scroll-behavior: smooth; }
-  .messages::-webkit-scrollbar { width: 4px; }
-  .messages::-webkit-scrollbar-track { background: transparent; }
-  .messages::-webkit-scrollbar-thumb { background: #2d2870; border-radius: 4px; }
-  .bubble { max-width: 88%; padding: 14px 18px; border-radius: 20px; line-height: 1.6; font-size: 0.95rem; animation: fadeUp 0.3s ease; white-space: pre-wrap; word-break: break-word; }
-  @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-  .bubble.ai { background: linear-gradient(135deg, #1e1a4a 0%, rgba(45,40,112,0.7) 100%); border: 1px solid #2d2870; align-self: flex-start; border-bottom-left-radius: 6px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
-  .bubble.user { background: linear-gradient(135deg, #7c3aed, #5b21b6); align-self: flex-end; border-bottom-right-radius: 6px; box-shadow: 0 4px 20px rgba(124,58,237,0.4); color: white; }
-  .bubble.system { background: linear-gradient(135deg, rgba(16,185,129,0.15), rgba(16,185,129,0.05)); border: 1px solid rgba(16,185,129,0.3); align-self: center; max-width: 100%; text-align: center; font-size: 0.85rem; color: #10b981; font-weight: 700; border-radius: 12px; padding: 10px 16px; }
-  .thinking { display: flex; align-items: center; gap: 6px; padding: 14px 18px; background: #1e1a4a; border: 1px solid #2d2870; border-radius: 20px; border-bottom-left-radius: 6px; align-self: flex-start; max-width: 88%; }
-  .dot { width: 7px; height: 7px; background: #c084fc; border-radius: 50%; animation: bounce 1.2s infinite; }
-  .dot:nth-child(2) { animation-delay: 0.2s; }
-  .dot:nth-child(3) { animation-delay: 0.4s; }
-  @keyframes bounce { 0%, 80%, 100% { transform: translateY(0); opacity: 0.4; } 40% { transform: translateY(-6px); opacity: 1; } }
-  .input-area { padding: 14px 16px; border-top: 1px solid #2d2870; background: rgba(15,12,41,0.95); backdrop-filter: blur(12px); display: flex; gap: 10px; align-items: flex-end; position: relative; z-index: 10; flex-shrink: 0; }
-  .text-input { flex: 1; background: #1e1a4a; border: 1px solid #2d2870; border-radius: 16px; padding: 12px 16px; color: #f0eeff; font-family: 'Nunito', sans-serif; font-size: 0.95rem; resize: none; outline: none; max-height: 120px; min-height: 46px; line-height: 1.5; transition: border-color 0.2s; }
-  .text-input:focus { border-color: #a855f7; box-shadow: 0 0 0 3px rgba(168,85,247,0.15); }
-  .text-input::placeholder { color: #a89fd8; }
-  .send-btn { width: 46px; height: 46px; background: linear-gradient(135deg, #7c3aed, #ec4899); border: none; border-radius: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; transition: transform 0.15s, box-shadow 0.15s; box-shadow: 0 4px 15px rgba(124,58,237,0.5); flex-shrink: 0; color: white; }
-  .send-btn:hover:not(:disabled) { transform: scale(1.08); }
-  .send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-  .quick-btns { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 16px 10px; position: relative; z-index: 10; background: rgba(15,12,41,0.95); flex-shrink: 0; }
-  .qbtn { background: #1e1a4a; border: 1px solid #2d2870; border-radius: 20px; padding: 6px 14px; color: #c084fc; font-family: 'Nunito', sans-serif; font-size: 0.82rem; font-weight: 700; cursor: pointer; transition: all 0.15s; }
-  .qbtn:hover { background: #7c3aed; border-color: #7c3aed; color: white; transform: translateY(-1px); }
-  .mic-btn { background: linear-gradient(135deg, #dc2626, #b91c1c); border: none; border-radius: 14px; padding: 10px 16px; color: white; font-family: 'Nunito', sans-serif; font-size: 0.9rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 15px rgba(220,38,38,0.4); transition: transform 0.15s; flex-shrink: 0; }
-  .mic-btn:hover { transform: scale(1.05); }
-  .mic-btn.recording { animation: pulse-red 1s infinite; }
-  @keyframes pulse-red { 0%, 100% { box-shadow: 0 4px 15px rgba(220,38,38,0.4); } 50% { box-shadow: 0 4px 30px rgba(220,38,38,0.8); } }
-  .badge-popup { position: fixed; top: 80px; left: 50%; transform: translateX(-50%) translateY(-20px); background: linear-gradient(135deg, #fbbf24, #f59e0b); color: #1a1200; padding: 12px 24px; border-radius: 20px; font-weight: 900; font-size: 1rem; z-index: 100; animation: badgePop 3s forwards; box-shadow: 0 8px 30px rgba(251,191,36,0.5); white-space: nowrap; }
-  @keyframes badgePop { 0% { opacity: 0; transform: translateX(-50%) translateY(-20px) scale(0.8); } 15% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1.05); } 85% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); } 100% { opacity: 0; transform: translateX(-50%) translateY(-10px) scale(0.95); } }
-  .progress-bar-outer { height: 4px; background: #2d2870; border-radius: 4px; margin: 6px 0 2px; overflow: hidden; }
-  .progress-bar-inner { height: 100%; background: linear-gradient(90deg, #7c3aed, #ec4899); border-radius: 4px; transition: width 0.5s ease; }
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+html,body,#root{min-height:100%;background:#07061a}
+body{font-family:'Nunito',sans-serif;color:#f0eeff;-webkit-tap-highlight-color:transparent}
+.ll-wrap{min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:12px;background:radial-gradient(ellipse at 50% 0%,#1a0f3a 0%,#07061a 70%)}
+.ll-card{width:100%;max-width:480px;display:flex;flex-direction:column;gap:12px}
+.ll-header{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;background:rgba(255,255,255,0.06);border-radius:22px;border:1px solid rgba(255,255,255,0.08)}
+.ll-logo{display:flex;align-items:center;gap:10px}
+.ll-logo-icon{width:42px;height:42px;border-radius:14px;background:linear-gradient(135deg,#7c3aed,#ec4899);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.ll-logo-title{font-weight:900;font-size:1.15rem;background:linear-gradient(90deg,#c084fc,#ec4899);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.ll-logo-sub{font-size:0.65rem;color:#a89fd8;margin-top:-2px}
+.ll-stars{display:flex;align-items:center;gap:6px;background:rgba(251,191,36,0.12);border:1px solid rgba(251,191,36,0.25);border-radius:20px;padding:6px 14px;font-size:0.85rem;font-weight:800;color:#fbbf24;flex-shrink:0}
+.ll-tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.ll-tab{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:10px 4px;text-align:center;cursor:pointer;transition:all .2s;font-size:0.7rem;font-weight:800;color:#a89fd8;font-family:'Nunito',sans-serif}
+.ll-tab.active{background:rgba(124,58,237,0.25);border-color:#7c3aed;color:#c084fc}
+.ll-tab-icon{font-size:1.2rem;display:block;margin-bottom:3px}
+.ll-word-card{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:28px;padding:22px 20px;text-align:center;cursor:pointer;transition:all .2s;position:relative;user-select:none}
+.ll-word-card:active{transform:scale(0.98)}
+.ll-hear-hint{position:absolute;top:12px;right:14px;background:rgba(124,58,237,0.3);border-radius:10px;padding:3px 10px;font-size:0.68rem;color:#c084fc;font-weight:700}
+.ll-dots{display:flex;justify-content:center;gap:7px;margin-bottom:14px}
+.ll-dot{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,0.12);transition:all .3s;flex-shrink:0}
+.ll-dot.done{background:#10b981}
+.ll-dot.active{background:#7c3aed;transform:scale(1.4)}
+.ll-word-big{font-size:clamp(2rem,8vw,3.2rem);font-weight:900;color:#fff;letter-spacing:3px;display:block;margin-bottom:8px}
+.ll-phonetic{font-size:1rem;color:#c084fc;margin-bottom:6px}
+.ll-hint-text{font-size:0.78rem;color:#a89fd8}
+.ll-sentence{background:rgba(124,58,237,0.1);border-left:3px solid #7c3aed;border-radius:0 14px 14px 0;padding:10px 16px;font-size:0.88rem;color:#d4c8ff;font-style:italic;line-height:1.5}
+.ll-tip{background:rgba(255,255,255,0.04);border-radius:16px;padding:12px 16px;font-size:0.82rem;color:#c084fc;line-height:1.6;display:flex;gap:8px;align-items:flex-start}
+.ll-status{text-align:center;font-size:0.82rem;color:#a89fd8;min-height:22px;transition:color .3s;font-weight:700}
+.ll-status.listening{color:#ef4444;animation:blink 1s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.5}}
+.ll-result{border-radius:22px;padding:18px;text-align:center;transition:all .3s}
+.ll-result.great{background:rgba(16,185,129,0.12);border:2px solid rgba(16,185,129,0.3)}
+.ll-result.ok{background:rgba(251,191,36,0.12);border:2px solid rgba(251,191,36,0.25)}
+.ll-result.retry{background:rgba(239,68,68,0.12);border:2px solid rgba(239,68,68,0.25)}
+.ll-score{font-size:2.6rem;font-weight:900;margin-bottom:4px}
+.ll-result.great .ll-score{color:#10b981}
+.ll-result.ok .ll-score{color:#fbbf24}
+.ll-result.retry .ll-score{color:#ef4444}
+.ll-result-msg{font-size:0.95rem;font-weight:800;margin-bottom:6px}
+.ll-result-detail{font-size:0.8rem;color:#a89fd8;line-height:1.5}
+.ll-btn-row{display:grid;gap:10px}
+.ll-btn-row.two{grid-template-columns:1fr 1fr}
+.ll-btn{padding:16px;border-radius:18px;border:none;font-family:'Nunito',sans-serif;font-size:0.95rem;font-weight:800;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;-webkit-tap-highlight-color:transparent}
+.ll-btn:active{transform:scale(0.97)}
+.ll-btn-mic{background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;font-size:1rem}
+.ll-btn-mic.recording{animation:pulse-mic 1s infinite;background:linear-gradient(135deg,#ef4444,#dc2626)}
+@keyframes pulse-mic{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,0.5)}50%{box-shadow:0 0 0 14px rgba(220,38,38,0)}}
+.ll-btn-hear{background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff}
+.ll-btn-next{background:linear-gradient(135deg,#059669,#047857);color:#fff}
+.ll-btn-again{background:rgba(255,255,255,0.08);color:#f0eeff;border:1px solid rgba(255,255,255,0.12)}
+.ll-ai-thinking{display:flex;align-items:center;gap:8px;justify-content:center;padding:14px;background:rgba(124,58,237,0.1);border-radius:16px;font-size:0.85rem;color:#c084fc;font-weight:700}
+.ll-dot-anim{width:7px;height:7px;border-radius:50%;background:#c084fc;animation:bounce .9s infinite}
+.ll-dot-anim:nth-child(2){animation-delay:.15s}
+.ll-dot-anim:nth-child(3){animation-delay:.3s}
+@keyframes bounce{0%,80%,100%{transform:translateY(0);opacity:.4}40%{transform:translateY(-6px);opacity:1}}
+.ll-badge{position:fixed;top:18px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#1a1200;padding:10px 26px;border-radius:22px;font-weight:900;font-size:0.95rem;z-index:999;white-space:nowrap;animation:badge-anim 2.8s forwards}
+@keyframes badge-anim{0%{opacity:0;transform:translateX(-50%) translateY(-16px) scale(.85)}15%{opacity:1;transform:translateX(-50%) translateY(0) scale(1.04)}85%{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}100%{opacity:0;transform:translateX(-50%) translateY(-10px) scale(.95)}}
+.ll-onboard{display:flex;flex-direction:column;gap:14px;padding:8px 0}
+.ll-onboard-hero{text-align:center;padding:20px 0 10px}
+.ll-onboard-hero h1{font-size:clamp(1.6rem,6vw,2.2rem);font-weight:900;margin-bottom:8px}
+.ll-onboard-hero p{color:#a89fd8;font-size:0.9rem;line-height:1.6}
+.ll-age-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.ll-age-btn{background:rgba(255,255,255,0.06);border:2px solid transparent;border-radius:18px;padding:18px 8px;cursor:pointer;transition:all .2s;text-align:center;font-family:'Nunito',sans-serif;color:#f0eeff;font-weight:800}
+.ll-age-btn:hover,.ll-age-btn.sel{background:rgba(124,58,237,0.2);border-color:#7c3aed;color:#c084fc}
+.ll-age-btn-icon{font-size:2rem;display:block;margin-bottom:6px}
+.ll-name-input{width:100%;background:rgba(255,255,255,0.07);border:2px solid rgba(124,58,237,0.3);border-radius:16px;padding:16px 20px;color:#f0eeff;font-family:'Nunito',sans-serif;font-size:1rem;font-weight:700;outline:none;text-align:center;transition:border-color .2s}
+.ll-name-input:focus{border-color:#7c3aed}
+.ll-name-input::placeholder{color:#a89fd8;font-weight:400}
+.ll-start-btn{background:linear-gradient(135deg,#7c3aed,#ec4899);border:none;border-radius:18px;padding:18px;color:#fff;font-family:'Nunito',sans-serif;font-size:1.1rem;font-weight:900;cursor:pointer;transition:transform .15s;width:100%}
+.ll-start-btn:active{transform:scale(0.98)}
+.ll-progress{background:rgba(255,255,255,0.05);border-radius:14px;padding:10px 16px}
+.ll-prog-top{display:flex;justify-content:space-between;font-size:0.72rem;color:#a89fd8;margin-bottom:6px;font-weight:700}
+.ll-prog-bar{height:7px;background:rgba(255,255,255,0.08);border-radius:8px;overflow:hidden}
+.ll-prog-fill{height:100%;background:linear-gradient(90deg,#7c3aed,#ec4899);border-radius:8px;transition:width .5s ease}
 `;
 
-function StarsBg() {
-  const stars = Array.from({ length: 60 }, (_, i) => ({
-    id: i,
-    left: Math.random() * 100,
-    top: Math.random() * 100,
-    delay: Math.random() * 3,
-    size: Math.random() > 0.8 ? 3 : 2,
-  }));
-  return (
-    <div className="stars-bg">
-      {stars.map((s) => (
-        <div key={s.id} className="star-particle" style={{ left: `${s.left}%`, top: `${s.top}%`, animationDelay: `${s.delay}s`, width: s.size, height: s.size }} />
-      ))}
-    </div>
-  );
+export default function LingoLeap() {
+  const [screen, setScreen] = useState("onboard");
+  const [name, setName] = useState("");
+  const [age, setAge] = useState(null);
+  const [module, setModule] = useState(0);
+  const [wordIdx, setWordIdx] = useState(0);
+  const [stars, setStars] = useState(0);
+  const [recording, setRecording] = useState(false);
+  const [heard, setHeard] = useState(null);
+  const [aiThinking, setAiThinking] = useState(false);
+  const [result, setResult] = useState(null);
+  const [badge, setBadge] = useState(null);
+  const recRef = useRef(null);
+  const bottomRef = useRef(null);
+
+  useEffect(() => {
+    const el = document.createElement("style");
+    el.textContent = css;
+    document.head.appendChild(el);
+    speechSynthesis.getVoices();
+    return () => document.head.removeChild(el);
+  }, []);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [result, aiThinking, heard]);
+
+  const lesson = LESSONS[module];
+  const item = lesson.words[wordIdx];
+
+  function startApp() {
+    if (!name.trim()) { alert("Please enter your name!"); return; }
+    if (!age) { alert("Please select your age!"); return; }
+    setScreen("main");
+    setTimeout(() => speak(`Welcome to LingoLeap, ${name}! Let's learn to pronounce English perfectly!`), 400);
+  }
+
+  function switchModule(i) {
+    setModule(i); setWordIdx(0); resetResult();
+    setTimeout(() => speak(`${LESSONS[i].level} module. Let's go!`), 200);
+  }
+
+  function resetResult() { setResult(null); setHeard(null); }
+
+  function hearWord() {
+    speak(item.word.toLowerCase(), 0.7);
+    setTimeout(() => speak(item.sentence, 0.85), 1800);
+  }
+
+  function toggleMic() {
+    if (recording) { recRef.current?.stop(); return; }
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) {
+      speak("Sorry, microphone not supported. Please use Google Chrome.");
+      return;
+    }
+    const rec = new SR();
+    recRef.current = rec;
+    rec.lang = "en-US"; rec.interimResults = false; rec.maxAlternatives = 3;
+    rec.onstart = () => setRecording(true);
+    rec.onresult = (e) => {
+      const said = e.results[0][0].transcript;
+      setHeard(said);
+      judgeWithClaude(said);
+    };
+    rec.onerror = () => { setRecording(false); speak("I couldn't hear you. Please try again!"); };
+    rec.onend = () => setRecording(false);
+    rec.start();
+    setTimeout(() => rec.stop(), 7000);
+  }
+
+  async function judgeWithClaude(said) {
+    setAiThinking(true);
+    setResult(null);
+    const target = item.word;
+    const phonetic = item.phonetic;
+    const hint = item.hint;
+    const prompt = `You are a friendly English pronunciation coach for children aged 5-20.
+
+The student was asked to say: "${target}" (phonetic: ${phonetic})
+Pronunciation tip: ${hint}
+The speech recognition heard them say: "${said}"
+
+Evaluate their pronunciation. Be warm and encouraging. Respond ONLY with a JSON object like this:
+{
+  "score": 85,
+  "grade": "great",
+  "message": "Amazing job!",
+  "detail": "Your T sound was perfect! The A vowel was very clear.",
+  "spoken_feedback": "Amazing! You said it really well! The word is ${target}. You scored 85 percent!"
 }
 
-export default function LingoLeap() {
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [started, setStarted] = useState(false);
-  const [stars, setStars] = useState(0);
-  const [badge, setBadge] = useState(null);
-  const [recording, setRecording] = useState(false);
-  const messagesEnd = useRef(null);
-  const recognitionRef = useRef(null);
-  const textareaRef = useRef(null);
-  const conversationRef = useRef([]);
+grade must be: "great" (score 80+), "ok" (score 50-79), or "retry" (score below 50).
+Score how close the student said "${said}" compared to the target "${target}".
+spoken_feedback is what will be spoken aloud to the child — keep it short, warm, specific.
+Return ONLY valid JSON, nothing else.`;
 
-  useEffect(() => {
-    const style = document.createElement("style");
-    style.textContent = css;
-    document.head.appendChild(style);
-    return () => document.head.removeChild(style);
-  }, []);
-
-  useEffect(() => {
-    messagesEnd.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, loading]);
-
-  useEffect(() => {
-    if (!started) { beginSession(); setStarted(true); }
-  }, []);
-
-  useEffect(() => {
-    if (messages.length > 0) {
-      const last = messages[messages.length - 1];
-      if (last.role === "ai") {
-        if (last.text.includes("Vowel Champion")) { showBadge("🏅 Vowel Champion Unlocked!"); setStars((s) => s + 10); }
-        else if (last.text.includes("Alphabet Hero")) { showBadge("🏅 Alphabet Hero Unlocked!"); setStars((s) => s + 15); }
-        else if (last.text.includes("Word Wizard")) { showBadge("🏅 Word Wizard Unlocked!"); setStars((s) => s + 20); }
-        else if (last.text.toLowerCase().includes("perfect") || last.text.toLowerCase().includes("amazing")) { setStars((s) => s + 1); }
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": import.meta.env.VITE_ANTHROPIC_KEY,
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true"
+        },
+        body: JSON.stringify({
+          model: ANTHROPIC_MODEL,
+          max_tokens: 300,
+          messages: [{ role: "user", content: prompt }]
+        })
+      });
+      const data = await res.json();
+      const text = data.content?.find(b => b.type === "text")?.text || "{}";
+      const clean = text.replace(/```json|```/g, "").trim();
+      const parsed = JSON.parse(clean);
+      setResult(parsed);
+      speak(parsed.spoken_feedback || `You said ${said}. The correct word is ${target}. Try again!`);
+      if (parsed.grade === "great") {
+        const newStars = stars + (parsed.score >= 95 ? 2 : 1);
+        setStars(newStars);
+        if ([5, 10, 20, 30, 50].includes(newStars)) {
+          triggerBadge(
+            newStars === 5 ? "🌟 First 5 Stars!" :
+            newStars === 10 ? "🏅 10 Stars!" :
+            newStars === 20 ? "🏆 Word Wizard!" :
+            newStars === 30 ? "🏆 Pronunciation Pro!" : "🏆 Champion!"
+          );
+        }
       }
+    } catch {
+      setResult({ score: 0, grade: "retry", message: "Try again!", detail: "Could not connect. Check your internet.", spoken_feedback: "Please try again!" });
+      speak("Please try again!");
     }
-  }, [messages]);
+    setAiThinking(false);
+  }
 
-  function showBadge(text) {
+  function triggerBadge(text) {
     setBadge(text);
-    setTimeout(() => setBadge(null), 3200);
+    speak(text.replace(/[🌟🏅🏆]/g, ""));
+    setTimeout(() => setBadge(null), 2800);
   }
 
-  async function callClaude(userMessage) {
-    const history = conversationRef.current;
-    const newHistory = [...history, { role: "user", content: userMessage }];
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-  "Content-Type": "application/json",
-  "x-api-key": import.meta.env.VITE_ANTHROPIC_KEY,
-  "anthropic-version": "2023-06-01",
-  "anthropic-dangerous-direct-browser-access": "true"
-},
-      body: JSON.stringify({ model: ANTHROPIC_MODEL, max_tokens: 1000, system: SYSTEM_PROMPT, messages: newHistory }),
-    });
-    const data = await response.json();
-    const aiText = data.content?.find((b) => b.type === "text")?.text || "Hmm, something went wrong. Try again!";
-    conversationRef.current = [...newHistory, { role: "assistant", content: aiText }];
-    return aiText;
-  }
-
-  async function beginSession() {
-    setLoading(true);
-    try {
-      const aiText = await callClaude("BEGIN_SESSION");
-      setMessages([{ role: "ai", text: aiText, id: Date.now() }]);
-    } catch {
-      setMessages([{ role: "ai", text: "🌟 Welcome to LingoLeap! Having trouble connecting. Please refresh.", id: Date.now() }]);
+  function nextWord() {
+    if (wordIdx < lesson.words.length - 1) {
+      setWordIdx(wordIdx + 1);
+      resetResult();
+      setTimeout(() => speak(LESSONS[module].words[wordIdx + 1].word.toLowerCase(), 0.7), 300);
+    } else {
+      triggerBadge("🏆 Module Complete!");
+      if (module < LESSONS.length - 1) setTimeout(() => switchModule(module + 1), 2500);
     }
-    setLoading(false);
   }
 
-  async function sendMessage(text) {
-    if (!text.trim() || loading) return;
-    const userText = text.trim();
-    setInput("");
-    if (textareaRef.current) textareaRef.current.style.height = "46px";
-    setMessages((prev) => [...prev, { role: "user", text: userText, id: Date.now() }]);
-    setLoading(true);
-    try {
-      const aiText = await callClaude(userText);
-      setMessages((prev) => [...prev, { role: "ai", text: aiText, id: Date.now() + 1 }]);
-    } catch {
-      setMessages((prev) => [...prev, { role: "ai", text: "Oops! Something went wrong. Try again 😊", id: Date.now() + 1 }]);
-    }
-    setLoading(false);
-  }
-
-  function handleKey(e) {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(input); }
-  }
-
-  function handleTextarea(e) {
-    setInput(e.target.value);
-    e.target.style.height = "46px";
-    e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
-  }
-
-  function startMic() {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) { alert("Speech recognition not supported. Please type your answer."); return; }
-    if (recording) { recognitionRef.current?.stop(); setRecording(false); return; }
-    const recognition = new SpeechRecognition();
-    recognition.lang = "en-US";
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-    recognitionRef.current = recognition;
-    recognition.onresult = (event) => {
-      const spoken = event.results[0][0].transcript;
-      setInput((prev) => prev ? prev + " " + spoken : spoken);
-      setRecording(false);
-    };
-    recognition.onerror = () => setRecording(false);
-    recognition.onend = () => setRecording(false);
-    recognition.start();
-    setRecording(true);
-    setTimeout(() => { recognition.stop(); setRecording(false); }, 5000);
-  }
-
-  const quickButtons = ["GO", "YES", "NEXT →", "AGAIN", "BREAK"];
-  const level = stars < 50 ? "Beginner" : stars < 150 ? "Explorer" : stars < 300 ? "Reader" : stars < 500 ? "Speaker" : "Champion";
-  const levelMax = stars < 50 ? 50 : stars < 150 ? 150 : stars < 300 ? 300 : 500;
-  const levelMin = stars < 50 ? 0 : stars < 150 ? 50 : stars < 300 ? 150 : 300;
-  const pct = Math.min(100, ((stars - levelMin) / (levelMax - levelMin)) * 100);
-
-  return (
-    <>
-      <StarsBg />
-      {badge && <div className="badge-popup">{badge}</div>}
-      <div className="app">
-        <div className="header">
-          <div className="logo">
-            <div className="logo-icon">🎤</div>
+  if (screen === "onboard") return (
+    <div className="ll-wrap">
+      {badge && <div className="ll-badge">{badge}</div>}
+      <div className="ll-card">
+        <div className="ll-header">
+          <div className="ll-logo">
+            <div className="ll-logo-icon">🎤</div>
             <div>
-              <div className="logo-text">LingoLeap</div>
-              <div style={{ fontSize: "0.7rem", color: "#a89fd8", marginTop: -2 }}>English Coach</div>
+              <div className="ll-logo-title">LingoLeap</div>
+              <div className="ll-logo-sub">English Pronunciation Coach</div>
             </div>
           </div>
-          <div className="stats-bar">
-            <div className="stat-pill">⭐ {stars} <span style={{ marginLeft: 4, fontSize: "0.7rem", color: "#a89fd8" }}>{level}</span></div>
+        </div>
+        <div className="ll-onboard">
+          <div className="ll-onboard-hero">
+            <div style={{fontSize:"3.5rem",marginBottom:"12px"}}>🎤</div>
+            <h1>Learn to Speak<br/>English Perfectly!</h1>
+            <p style={{marginTop:"10px"}}>Speak a word → AI listens → tells you exactly how you did!</p>
           </div>
-        </div>
-        <div style={{ padding: "4px 16px 0", background: "rgba(15,12,41,0.95)", position: "relative", zIndex: 10, flexShrink: 0 }}>
-          <div className="progress-bar-outer">
-            <div className="progress-bar-inner" style={{ width: `${pct}%` }} />
+          <input
+            className="ll-name-input"
+            placeholder="What is your name?"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && startApp()}
+            maxLength={24}
+          />
+          <div className="ll-age-grid">
+            {[["🐣","5 – 9","5-9"],["🌿","10 – 14","10-14"],["🚀","15+","15+"]].map(([icon,label,val]) => (
+              <button key={val} className={`ll-age-btn${age===val?" sel":""}`} onClick={() => setAge(val)}>
+                <span className="ll-age-btn-icon">{icon}</span>{label}
+              </button>
+            ))}
           </div>
-          <div style={{ fontSize: "0.7rem", color: "#a89fd8", textAlign: "right", marginBottom: 4 }}>
-            {stars < 500 ? `${levelMax - stars} stars to next level` : "Max Level!"}
-          </div>
-        </div>
-        <div className="messages">
-          {messages.map((m) => (
-            <div key={m.id} className={`bubble ${m.role === "ai" ? "ai" : m.role === "system" ? "system" : "user"}`}>
-              {m.text}
-            </div>
-          ))}
-          {loading && (
-            <div className="thinking">
-              <div className="dot" /><div className="dot" /><div className="dot" />
-            </div>
-          )}
-          <div ref={messagesEnd} />
-        </div>
-        <div className="quick-btns">
-          {quickButtons.map((b) => (
-            <button key={b} className="qbtn" onClick={() => sendMessage(b)} disabled={loading}>{b}</button>
-          ))}
-        </div>
-        <div className="input-area">
-          <button className={`mic-btn ${recording ? "recording" : ""}`} onClick={startMic}>
-            {recording ? "🔴 Stop" : "🎙️"}
-          </button>
-          <textarea ref={textareaRef} className="text-input" value={input} onChange={handleTextarea} onKeyDown={handleKey} placeholder="Type your answer… or press 🎙️ to speak" rows={1} disabled={loading} />
-          <button className="send-btn" onClick={() => sendMessage(input)} disabled={!input.trim() || loading}>➤</button>
+          <button className="ll-start-btn" onClick={startApp}>Start Learning! 🚀</button>
         </div>
       </div>
-    </>
+    </div>
+  );
+
+  return (
+    <div className="ll-wrap">
+      {badge && <div className="ll-badge">{badge}</div>}
+      <div className="ll-card">
+        <div className="ll-header">
+          <div className="ll-logo">
+            <div className="ll-logo-icon">🎤</div>
+            <div>
+              <div className="ll-logo-title">LingoLeap</div>
+              <div className="ll-logo-sub">Hi {name}! 👋</div>
+            </div>
+          </div>
+          <div className="ll-stars">⭐ {stars}</div>
+        </div>
+
+        <div className="ll-progress">
+          <div className="ll-prog-top">
+            <span>{lesson.emoji} {lesson.level}</span>
+            <span>{wordIdx} / {lesson.words.length} words</span>
+          </div>
+          <div className="ll-prog-bar">
+            <div className="ll-prog-fill" style={{width:`${(wordIdx/lesson.words.length)*100}%`}} />
+          </div>
+        </div>
+
+        <div className="ll-tabs">
+          {LESSONS.map((l,i) => (
+            <button key={i} className={`ll-tab${module===i?" active":""}`} onClick={() => switchModule(i)}>
+              <span className="ll-tab-icon">{l.emoji}</span>{l.level}
+            </button>
+          ))}
+        </div>
+
+        <div className="ll-word-card" onClick={hearWord}>
+          <div className="ll-hear-hint">🔊 tap to hear</div>
+          <div className="ll-dots">
+            {lesson.words.map((_,i) => (
+              <div key={i} className={`ll-dot${i<wordIdx?" done":i===wordIdx?" active":""}`} />
+            ))}
+          </div>
+          <span className="ll-word-big">{item.word}</span>
+          <div className="ll-phonetic">{item.phonetic}</div>
+          <div className="ll-hint-text">Tap to hear how it sounds</div>
+        </div>
+
+        <div className="ll-sentence">{item.sentence}</div>
+
+        <div className="ll-tip">
+          <span style={{fontSize:"1.2rem",flexShrink:0}}>👄</span>
+          <span>{item.hint}</span>
+        </div>
+
+        <div className={`ll-status${recording?" listening":""}`}>
+          {recording ? "🔴 Listening… say the word now!" : heard ? `You said: "${heard}"` : `Tap 🎙️ and say the word out loud!`}
+        </div>
+
+        {aiThinking && (
+          <div className="ll-ai-thinking">
+            <div className="ll-dot-anim"/><div className="ll-dot-anim"/><div className="ll-dot-anim"/>
+            <span>AI is judging your pronunciation…</span>
+          </div>
+        )}
+
+        {result && !aiThinking && (
+          <div className={`ll-result ${result.grade}`}>
+            <div className="ll-score">{result.score}%</div>
+            <div className="ll-result-msg">{result.message}</div>
+            <div className="ll-result-detail">{result.detail}</div>
+          </div>
+        )}
+
+        <div className="ll-btn-row two">
+          <button className={`ll-btn ll-btn-mic${recording?" recording":""}`} onClick={toggleMic} disabled={aiThinking}>
+            {recording ? "🔴 Stop" : "🎙️ Speak"}
+          </button>
+          <button className="ll-btn ll-btn-hear" onClick={hearWord} disabled={aiThinking}>
+            🔊 Hear It
+          </button>
+        </div>
+
+        {result && (
+          <div className="ll-btn-row two">
+            <button className="ll-btn ll-btn-next" onClick={nextWord}>Next ➜</button>
+            <button className="ll-btn ll-btn-again" onClick={resetResult}>Try Again</button>
+          </div>
+        )}
+
+        <div ref={bottomRef} />
+      </div>
+    </div>
   );
 }
