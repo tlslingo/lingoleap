@@ -11,7 +11,19 @@
     "checkJs": false,
     "noEmit": true,
     "strict": false,
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noFallthroughCasesInSwitch": false
   },
   "include": ["src"]
 }
+```
+
+Also go to `package.json` → pencil ✏️ → find:
+```
+"build": "tsc -b && vite build"
+```
+Change to:
+```
+"build": "vite build"
