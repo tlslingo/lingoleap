@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
 const ANTHROPIC_MODEL = "claude-sonnet-4-20250514";
+
 const RV_SCRIPT = "https://code.responsivevoice.org/responsivevoice.js?key=FREE";
 
 function speak(text, rate) {
